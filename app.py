@@ -18,7 +18,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.taken_mapper import TakenMapper
-from src.wv_balans_mapper import WVBalansMapper, run_must_pass_tests
+from src.wv_balans_mapper import WVBalansMapper
 from src.learning import LearningStore, LearningEnhancedMatcher, export_learned_mappings_to_csv
 from src.utils import (
     read_csv_robust,
