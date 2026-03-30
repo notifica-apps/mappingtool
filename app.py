@@ -33,7 +33,10 @@ from src.utils import (
 # =============================================================================
 
 # Base path for NotificaRAAS data
-DATA_BASE_PATH = r"C:\Users\tobia\OneDrive - Notifica B.V\Documenten - Sharepoint Notifica intern\102. Klantmappen\0000 - NotificaRAAS"
+DATA_BASE_PATH = os.environ.get(
+    "RAAS_DATA_PATH",
+    r"C:\Users\tobia\OneDrive - Notifica B.V\Documenten - Sharepoint Notifica intern\102. Klantmappen\0000 - NotificaRAAS",
+)
 
 # Output directories
 OUTPUT_DIRS = {
