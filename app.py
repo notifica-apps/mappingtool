@@ -33,9 +33,11 @@ from src.utils import (
 # =============================================================================
 
 # Base path for NotificaRAAS data
+_WINDOWS_DEFAULT = r"C:\Users\tobia\OneDrive - Notifica B.V\Documenten - Sharepoint Notifica intern\102. Klantmappen\0000 - NotificaRAAS"
+_LINUX_DEFAULT = os.path.join(str(Path(__file__).parent), "data")
 DATA_BASE_PATH = os.environ.get(
     "RAAS_DATA_PATH",
-    r"C:\Users\tobia\OneDrive - Notifica B.V\Documenten - Sharepoint Notifica intern\102. Klantmappen\0000 - NotificaRAAS",
+    _WINDOWS_DEFAULT if sys.platform == "win32" else _LINUX_DEFAULT,
 )
 
 # Output directories
