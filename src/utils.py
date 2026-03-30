@@ -169,22 +169,21 @@ def get_output_filename(base_name: str, suffix: str = "") -> str:
     return f"{base_name}{suffix}_{today}.csv"
 
 
-def write_csv_output(df: pd.DataFrame, output_path: str, delimiter: str = ','):
+def write_csv_output(df: pd.DataFrame, output_path: str):
     """
-    Write DataFrame to CSV matching the source format.
-
-    Args:
-        df: DataFrame to write
-        output_path: Output file path
-        delimiter: Delimiter to use (default: comma, matching source files)
+    Write DataFrame to CSV with vaste opmaak:
+    - Delimiter: ;
+    - Encoding: UTF-8 met BOM
+    - Line endings: CRLF
     """
-    df.to_csv(
-        output_path,
-        sep=delimiter,
-        index=False,
-        quoting=csv.QUOTE_MINIMAL,
-        encoding='utf-8',
-    )
+    with open(output_path, 'w', encoding='utf-8-sig', newline='') as f:
+        df.to_csv(
+            f,
+            sep=';',
+            index=False,
+            quoting=csv.QUOTE_MINIMAL,
+            lineterminator='\r\n',
+        )
 
 
 def extract_base_name(filename: str) -> str:

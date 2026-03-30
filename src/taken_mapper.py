@@ -258,11 +258,10 @@ class TakenMapper:
         enriched_path = os.path.join(output_dir, enriched_filename)
         unmatched_path = os.path.join(output_dir, unmatched_filename)
 
-        delimiter = getattr(self, '_target_delimiter', ',')
-        write_csv_output(enriched_df, enriched_path, delimiter)
+        write_csv_output(enriched_df, enriched_path)
 
         if not unmatched_df.empty:
-            write_csv_output(unmatched_df, unmatched_path, delimiter)
+            write_csv_output(unmatched_df, unmatched_path)
         else:
             unmatched_path = None
 
