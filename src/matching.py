@@ -497,12 +497,14 @@ class WVBalansMatcher:
 
         # --- Vaste activa ---
         (r'aanschaf', ('Vaste Activa', 'Vaste Activa')),
+        (r'straat\b|weg\b|laan\b|plein\b|pand\b', ('Vaste Activa', 'Vaste Activa')),
 
         # --- Onderhanden projecten ---
         (r'^project\b', ('Vlottende Activa', 'Onderhanden projecten')),
 
         # --- Deelnemingen (BV-namen zonder RC) ---
-        (r'\bholding\b|\bb\s*v\b|\bbv\b', ('Financiele Vaste Activa', 'Deelneming')),
+        (r'\bholding\b|\bb\s*v\b|\bbv\b|beveiliging|automation|nedkom',
+         ('Financiele Vaste Activa', 'Deelneming')),
     ]
 
     def __init__(self, index: MappingIndex):
