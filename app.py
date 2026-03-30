@@ -122,7 +122,12 @@ st.markdown("""
 @st.cache_resource
 def get_learning_store():
     """Get or create the learning store instance."""
-    return LearningStore(LEARNING_DIR)
+    try:
+        return LearningStore(LEARNING_DIR)
+    except (PermissionError, OSError):
+        import tempfile
+        fallback = os.path.join(tempfile.gettempdir(), 'mappingtool_learning')
+        return LearningStore(fallback)
 
 
 # =============================================================================
@@ -258,8 +263,9 @@ def main():
             st.divider()
 
             # Info about output directories
-            st.subheader("Output locaties")
-            st.info(f"**{mapping_type}** output gaat naar:\n\n`{OUTPUT_DIRS[internal_type]}`")
+            if os.path.exists(OUTPUT_DIRS[internal_type]):
+                st.subheader("Output locaties")
+                st.info(f"**{mapping_type}** output gaat naar:\n\n`{OUTPUT_DIRS[internal_type]}`")
 
             # Show learning stats summary
             stats = learning_store.get_statistics()
@@ -290,9 +296,12 @@ def show_mapping_tool(learning_store, internal_type, min_fill_rate, use_learning
         st.subheader("1. Mapping Bestand (Bron)")
         st.caption("Dit bestand bevat de historische mappings van alle klanten (1000_...)")
 
+        has_local_files = os.path.exists(GENERATED_FILES_DIR)
+        source_options = ["Selecteer bestaand bestand", "Upload bestand"] if has_local_files else ["Upload bestand"]
+
         mapping_source = st.radio(
             "Mapping bestand bron:",
-            ["Selecteer bestaand bestand", "Upload bestand"],
+            source_options,
             key="mapping_source",
             horizontal=True
         )
@@ -346,7 +355,7 @@ def show_mapping_tool(learning_store, internal_type, min_fill_rate, use_learning
 
         target_source = st.radio(
             "Doel bestand bron:",
-            ["Selecteer bestaand bestand", "Upload bestand"],
+            source_options,
             key="target_source",
             horizontal=True
         )
@@ -764,35 +773,36 @@ def display_results(
             mime="text/plain"
         )
 
-    # Save to disk option
-    st.divider()
-    st.subheader("Opslaan naar schijf")
+    # Save to disk option (only when local output dir is accessible)
+    if os.path.isdir(os.path.dirname(output_dir)):
+        st.divider()
+        st.subheader("Opslaan naar schijf")
 
-    save_col1, save_col2 = st.columns([3, 1])
+        save_col1, save_col2 = st.columns([3, 1])
 
-    with save_col1:
-        st.info(f"Output directory: `{output_dir}`")
+        with save_col1:
+            st.info(f"Output directory: `{output_dir}`")
 
-    with save_col2:
-        if st.button("Opslaan naar output directory"):
-            try:
-                os.makedirs(output_dir, exist_ok=True)
+        with save_col2:
+            if st.button("Opslaan naar output directory"):
+                try:
+                    os.makedirs(output_dir, exist_ok=True)
 
-                enriched_path = os.path.join(output_dir, enriched_filename)
-                unmatched_path = os.path.join(output_dir, unmatched_filename)
+                    enriched_path = os.path.join(output_dir, enriched_filename)
+                    unmatched_path = os.path.join(output_dir, unmatched_filename)
 
-                # Write files
-                enriched_df.to_csv(enriched_path, sep=';', index=False, encoding='utf-8-sig')
-                if not unmatched_df.empty:
-                    unmatched_df.to_csv(unmatched_path, sep=';', index=False, encoding='utf-8-sig')
+                    # Write files
+                    enriched_df.to_csv(enriched_path, sep=';', index=False, encoding='utf-8-sig')
+                    if not unmatched_df.empty:
+                        unmatched_df.to_csv(unmatched_path, sep=';', index=False, encoding='utf-8-sig')
 
-                st.success(f"Bestanden opgeslagen!")
-                st.write(f"- `{enriched_path}`")
-                if not unmatched_df.empty:
-                    st.write(f"- `{unmatched_path}`")
+                    st.success(f"Bestanden opgeslagen!")
+                    st.write(f"- `{enriched_path}`")
+                    if not unmatched_df.empty:
+                        st.write(f"- `{unmatched_path}`")
 
-            except Exception as e:
-                st.error(f"Fout bij opslaan: {e}")
+                except Exception as e:
+                    st.error(f"Fout bij opslaan: {e}")
 
 
 def show_review_page(learning_store: LearningStore):
