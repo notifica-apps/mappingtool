@@ -118,9 +118,9 @@ def normalize_taken(taak: str, taak_type: Optional[str] = None) -> str:
 # WV/BALANS NORMALIZATION (Part 2)
 # =============================================================================
 
-WV_BALANS_REPLACEMENTS = [
-    # (pattern, replacement) - order matters!
-
+# Pass 1: Typo fixes, abbreviations, compound words
+# Wordt EERST uitgevoerd zodat samengestelde woorden intact blijven
+WV_BALANS_PASS1 = [
     # === Typo fixes (FIRST - before anything else) ===
     (r'\bverrzekering\b', 'verzekering'),      # dubbele r
     (r'\bservcie\b', 'service'),                # letters omgedraaid
@@ -138,18 +138,25 @@ WV_BALANS_REPLACEMENTS = [
     (r'\bsoc\b', 'sociaal'),                   # Soc. → sociaal
     (r'\binkasso\b', 'incasso'),               # spelling variant
     (r'\bvoorz\b', 'voorziening'),             # Voorz. → voorziening
+    (r'\bsvc\b', 'service'),                   # Svc → service
 
-    # === Compound word splitting (geen \b nodig) ===
-    (r'vzk', ' verzekering'),                  # ziekengeldvzk → ziekengeld verzekering
+    # === Compound word splitting (met boundary check) ===
+    (r'\bvzk\b', ' verzekering'),              # vzk → verzekering (als los woord)
+    (r'(?<=[a-z])vzk\b', ' verzekering'),      # ziekengeldvzk → ziekengeld verzekering
 
-    # === Original replacements ===
+    # === Samengestelde woorden EERST (voor generieke verwijderingen) ===
+    (r'\blidmaatschapskosten\b', 'lidmaatschap'),
+    (r'\breiskostenverg\b', 'reiskostenvergoeding'),
+    (r'\bverzekeringspremies\b', 'verzekering'),
+    (r'\bverzekeringskosten\b', 'verzekering'),
+    (r'\binkoopkosten\b', 'inkoop'),
+    (r'\bbalieverkopen\b', 'balie omzet'),
+    (r'\bverkopen balie\b', 'balie omzet'),
+
+    # === Synoniemen ===
     (r'\bverkopen\b', 'omzet'),
     (r'\bverkoop\b', 'omzet'),
     (r'\binkopen\b', 'inkoop'),
-    (r'\binkoopkosten\b', 'inkoop'),
-    (r'\bkosten\b', ''),  # remove
-    (r'\bkn\b', ''),      # remove (abbreviation for kosten) - NA pers kn/sal kn rules
-    (r'\bhardware\b', ''),  # remove
     (r'\bafschr\.\b', 'afschrijving'),
     (r'\bafschrijv\b', 'afschrijving'),
     (r'\bafschrijvingen\b', 'afschrijving'),
@@ -158,19 +165,21 @@ WV_BALANS_REPLACEMENTS = [
     (r'\bkvk\b', 'kamer van koophandel'),
     (r'\bwg\b', 'werkgevers'),
     (r'\bohw\b', 'onderhanden werk'),
-    (r'\blidmaatschapskosten\b', 'lidmaatschap'),
-    (r'\breiskostenverg\b', 'reiskostenvergoeding'),
-    (r'\bverzekeringspremies\b', 'verzekering'),
-    (r'\bverzekeringskosten\b', 'verzekering'),
-    (r'\bbalieverkopen\b', 'balie omzet'),
-    (r'\bverkopen balie\b', 'balie omzet'),
     (r'\bsvw\b', 'sociale verzekeringswet'),
     (r'\bwia\b', 'wia'),
     (r'\bwga\b', 'wga'),
     (r'\bwkr\b', 'werkkostenregeling'),
     (r'\boom\b', 'sociaal fonds'),
     (r'\bprefab\b', 'prefab'),
-    (r'\bvso\b', 'vaststellingsovereenkomst'),  # VSO afkorting
+    (r'\bvso\b', 'vaststellingsovereenkomst'),
+]
+
+# Pass 2: Generieke woordverwijdering
+# Wordt NA pass 1 uitgevoerd zodat samengestelde woorden al zijn omgezet
+WV_BALANS_PASS2 = [
+    (r'\bkosten\b', ''),    # remove (NA samengestelde woorden)
+    (r'\bkn\b', ''),        # remove (abbreviation for kosten) - NA pers kn/sal kn
+    (r'\bhardware\b', ''),  # remove
 ]
 
 
@@ -202,11 +211,15 @@ def normalize_rubriek(rubriek: str) -> str:
     # 5. Multiple spaces -> single space
     text = re.sub(r'\s+', ' ', text).strip()
 
-    # 6. Apply replacements (word-boundary based)
-    for pattern, replacement in WV_BALANS_REPLACEMENTS:
+    # 6. Apply replacements in twee passes
+    # Pass 1: Typo fixes, abbreviaties, samengestelde woorden
+    for pattern, replacement in WV_BALANS_PASS1:
         text = re.sub(pattern, replacement, text)
+    text = re.sub(r'\s+', ' ', text).strip()
 
-    # Clean up double spaces again after replacements
+    # Pass 2: Generieke woordverwijdering (NA samengestelde woorden)
+    for pattern, replacement in WV_BALANS_PASS2:
+        text = re.sub(pattern, replacement, text)
     text = re.sub(r'\s+', ' ', text).strip()
 
     return text

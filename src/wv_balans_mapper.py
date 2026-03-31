@@ -15,6 +15,7 @@ import pytz
 
 from .normalization import normalize_rubriek, clean_coa_code
 from .matching import MappingIndex, WVBalansMatcher
+from .quality import analyze_mapping_quality, QualityReport
 from .utils import (
     read_csv_robust,
     validate_columns,
@@ -42,12 +43,14 @@ class WVBalansMapper:
         self.index: Optional[MappingIndex] = None
         self.matcher: Optional[WVBalansMatcher] = None
         self.valid_combos: Set[Tuple[str, str, str]] = set()
+        self.quality_report: Optional[QualityReport] = None
         self.mapping_stats = {}
         self.run_stats = {}
 
     def load_mapping(self, mapping_path_or_content, is_content: bool = False, filename: str = "") -> Dict[str, Any]:
         """Load and index the mapping file. Bouwt ook de set van geldige combinaties."""
         df, delimiter = read_csv_robust(mapping_path_or_content, is_content)
+        self._mapping_df = df  # Bewaar voor quality analysis
         col_map = validate_columns(df, self.REQUIRED_MAPPING_COLS, "Mapping file")
 
         self.index = MappingIndex()
@@ -84,12 +87,22 @@ class WVBalansMapper:
         self.index.resolve()
         self.matcher = WVBalansMatcher(self.index)
 
+        # Kwaliteitsanalyse op het mapping bestand
+        mapping_type = 'Balans' if self.matcher._is_balans else 'WV'
+        self.quality_report = analyze_mapping_quality(
+            df, mapping_type,
+            rubriek_col=col_map['Rubriek'],
+            niveau1_col=col_map['Niveau1'],
+            niveau2_col=col_map['Niveau2'],
+        )
+
         self.mapping_stats = {
             'total_rows': len(df),
             'valid_rows': valid_rows,
             'skipped_rows': skipped_rows,
             'unique_keys': len(self.index._resolved),
             'valid_combos': len(self.valid_combos),
+            'quality_issues': self.quality_report.total_issues if self.quality_report else 0,
         }
 
         return self.mapping_stats

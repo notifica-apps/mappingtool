@@ -33,6 +33,7 @@ class TakenMapper:
         self.min_fill_rate = min_fill_rate
         self.index: Optional[MappingIndex] = None
         self.matcher: Optional[TakenMatcher] = None
+        self.valid_combos: set = set()
         self.mapping_stats = {}
         self.run_stats = {}
 
@@ -92,14 +93,15 @@ class TakenMapper:
 
             # Add to index
             combination = (code, groep)
+            self.valid_combos.add(combination)
             self.index.add(norm_taak, combination, taak_type, client_id)
             valid_rows += 1
 
         # Resolve best combinations
         self.index.resolve()
 
-        # Create matcher
-        self.matcher = TakenMatcher(self.index)
+        # Create matcher with valid combos for validation
+        self.matcher = TakenMatcher(self.index, valid_combos=self.valid_combos)
 
         self.mapping_stats = {
             'total_rows': len(df),
@@ -111,6 +113,14 @@ class TakenMapper:
         }
 
         return self.mapping_stats
+
+    def _validate_combo(self, combo: Optional[Tuple]) -> Optional[Tuple]:
+        """Valideer dat een combinatie in het mappingbestand voorkomt."""
+        if combo is None:
+            return None
+        if combo in self.valid_combos:
+            return combo
+        return None
 
     def process_target(
         self,
@@ -173,13 +183,14 @@ class TakenMapper:
             # Normalize
             norm_taak = normalize_taken(taak, taak_type)
 
-            # Match
+            # Match + valideer tegen mappingbestand
             result, method = self.matcher.match(norm_taak, taak_type, client_id)
-            match_methods[method] += 1
+            validated = self._validate_combo(result)
 
-            if result:
-                df.at[idx, 'Taakgroepcode'] = result[0]
-                df.at[idx, 'Taakgroep'] = result[1]
+            if validated:
+                df.at[idx, 'Taakgroepcode'] = validated[0]
+                df.at[idx, 'Taakgroep'] = validated[1]
+                match_methods[method] += 1
             else:
                 unmatched_rows.append({
                     'UniekeID': idx + 1,

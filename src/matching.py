@@ -273,12 +273,22 @@ class TakenMatcher:
     Matcher for Taken (task) mapping with all specified matching strategies.
     """
 
-    # Anchor keys that get special treatment
-    ANCHOR_KEYS = ['verzuim', 'scholing', 'reisuren', 'urenregistratie', 'verlof', 'projectgebonden', 'montage']
+    # Anchor patterns: regex → genormaliseerde key die in de index moet staan
+    # Deze vangen variaties op die normalisatie niet exact reduceert
+    ANCHOR_PATTERNS = [
+        (r'^verzuim|ziekte|ziek\b', 'verzuim'),
+        (r'^scholing|cursus|opleiding|training|workshop', 'scholing'),
+        (r'^reisuren|reistijd|reis\s*uren', 'reisuren'),
+        (r'^urenregistratie|uren\s*boek|timesheet', 'urenregistratie'),
+        (r'^verlof|adv\b|feestdag', 'verlof'),
+        (r'^montage|keuren|testen|in bedrijf stellen', 'montage'),
+        (r'^project\b|werkvoorbereider|engineer', 'projectgebonden'),
+    ]
 
-    def __init__(self, index: MappingIndex):
+    def __init__(self, index: MappingIndex, valid_combos: set = None):
         self.index = index
         self.match_stats = Counter()
+        self.valid_combos = valid_combos or set()
 
     def match(
         self,
@@ -305,12 +315,14 @@ class TakenMatcher:
             self.match_stats['A_exact'] += 1
             return result, 'A_exact'
 
-        # Step B: Anchor match
-        if normalized_key in self.ANCHOR_KEYS:
-            result = self.index.get_exact(normalized_key, taak_type)
-            if result:
-                self.match_stats['B_anchor'] += 1
-                return result, 'B_anchor'
+        # Step B: Anchor match via regex patterns
+        for pattern, anchor_key in self.ANCHOR_PATTERNS:
+            if re.search(pattern, normalized_key, re.IGNORECASE):
+                result = self.index.get_exact(anchor_key, taak_type)
+                if result:
+                    if not self.valid_combos or result in self.valid_combos:
+                        self.match_stats['B_anchor'] += 1
+                        return result, 'B_anchor'
 
         # Step C: Prefix/subterm match
         candidates = self.index.get_candidates(normalized_key, taak_type)
@@ -497,14 +509,17 @@ class WVBalansMatcher:
 
         # --- Vaste activa ---
         (r'aanschaf', ('Vaste Activa', 'Vaste Activa')),
-        (r'straat\b|weg\b|laan\b|plein\b|pand\b', ('Vaste Activa', 'Vaste Activa')),
+        (r'\bpand\b|straat\b|weg\b|laan\b|plein\b', ('Vaste Activa', 'Vaste Activa')),
 
         # --- Onderhanden projecten ---
         (r'^project\b', ('Vlottende Activa', 'Onderhanden projecten')),
 
+        # --- Intercompany (BV-namen zonder RC/lening prefix → schulden groepsmaatschappijen) ---
+        (r'^(?!.*\b(?:rc|lening|deelneming|kapitaal|borgstorting)\b).*(?:/|beveiliging|automation|nedkom)',
+         ('Kortlopende schulden', 'Schulden aan groepsmaatschappijen')),
+
         # --- Deelnemingen (BV-namen zonder RC) ---
-        (r'\bholding\b|\bb\s*v\b|\bbv\b|beveiliging|automation|nedkom',
-         ('Financiele Vaste Activa', 'Deelneming')),
+        (r'\bholding\b|\bb\s*v\b|\bbv\b', ('Financiele Vaste Activa', 'Deelneming')),
     ]
 
     def __init__(self, index: MappingIndex):
@@ -583,23 +598,31 @@ class WVBalansMatcher:
                 if combos:
                     return combos[0]
 
-        # Step 3: Substring match on n1 (handles 'Personeelkosten' vs 'Personeelskosten' etc.)
+        # Step 3: Similarity match on n1 (handles 'Personeelkosten' vs 'Personeelskosten' etc.)
         n2_norm = niveau2.lower().strip() if niveau2 else ''
         best_match = None
-        best_count = 0
+        best_score = 0.0
 
         for (n1, n2), combos in self.niveau_to_codes.items():
             if not combos:
                 continue
-            # Check if n1 matches via substring containment
-            if n1_norm in n1 or n1 in n1_norm:
-                # If we have a target n2, prefer matches where n2 also matches
-                if n2_norm and (n2_norm in n2 or n2 in n2_norm):
-                    return combos[0]  # Strong match: both n1 and n2 match
-                # Track best n1-only match (most combos = most common)
-                if len(combos) > best_count:
-                    best_count = len(combos)
-                    best_match = combos[0]
+            # Check n1 similarity (SequenceMatcher ratio > 0.85)
+            n1_ratio = SequenceMatcher(None, n1_norm, n1).ratio()
+            if n1_ratio < 0.85:
+                continue
+            # If we have a target n2, prefer matches where n2 also matches
+            if n2_norm:
+                n2_ratio = SequenceMatcher(None, n2_norm, n2).ratio()
+                if n2_ratio >= 0.85:
+                    combined = n1_ratio + n2_ratio
+                    if combined > best_score:
+                        best_score = combined
+                        best_match = combos[0]
+                    continue
+            # Track best n1-only match
+            if n1_ratio > best_score:
+                best_score = n1_ratio
+                best_match = combos[0]
 
         return best_match
 

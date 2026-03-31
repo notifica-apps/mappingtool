@@ -223,3 +223,38 @@ def get_file_type(filename: str) -> Optional[str]:
         return 'Taken'
 
     return None
+
+
+def write_excel_output(
+    enriched_df: pd.DataFrame,
+    output_path: str,
+    schema_df: pd.DataFrame = None,
+    quality_df: pd.DataFrame = None,
+):
+    """
+    Schrijf resultaten naar Excel met meerdere sheets.
+
+    Args:
+        enriched_df: Verrijkte mapping data
+        output_path: Pad voor output bestand
+        schema_df: Optioneel referentieschema (apart tabblad)
+        quality_df: Optioneel kwaliteitsrapport (apart tabblad)
+    """
+    try:
+        import openpyxl
+    except ImportError:
+        # Fallback naar CSV als openpyxl niet beschikbaar is
+        csv_path = output_path.replace('.xlsx', '.csv')
+        write_csv_output(enriched_df, csv_path)
+        return csv_path
+
+    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        enriched_df.to_excel(writer, sheet_name='Mapping', index=False)
+
+        if schema_df is not None and not schema_df.empty:
+            schema_df.to_excel(writer, sheet_name='Referentie Schema', index=False)
+
+        if quality_df is not None and not quality_df.empty:
+            quality_df.to_excel(writer, sheet_name='Kwaliteitsrapport', index=False)
+
+    return output_path

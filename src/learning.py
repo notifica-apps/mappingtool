@@ -44,9 +44,25 @@ class LearningStore:
         self._load_learned_mappings()
 
     def _get_key(self, mapping_type: str, normalized_input: str, extra_context: str = "") -> str:
-        """Generate a unique key for a mapping entry."""
-        combined = f"{mapping_type}:{normalized_input}:{extra_context}"
-        return hashlib.md5(combined.encode()).hexdigest()[:16]
+        """Generate a unique key for a mapping entry.
+
+        Uses deterministic serialization of extra_context and full SHA-256
+        to avoid key collisions.
+        """
+        # Deterministic context: sort dict keys if it looks like a dict string
+        if isinstance(extra_context, dict):
+            context_str = json.dumps(extra_context, sort_keys=True)
+        else:
+            context_str = str(extra_context) if extra_context else ""
+        combined = f"{mapping_type}:{normalized_input}:{context_str}"
+        new_key = hashlib.sha256(combined.encode()).hexdigest()[:24]
+
+        # Backward compat: check if old MD5 key exists, migrate if so
+        old_key = hashlib.md5(f"{mapping_type}:{normalized_input}:{extra_context}".encode()).hexdigest()[:16]
+        if old_key in self._learned_mappings and new_key not in self._learned_mappings:
+            self._learned_mappings[new_key] = self._learned_mappings.pop(old_key)
+
+        return new_key
 
     def _get_timestamp(self) -> str:
         """Get current timestamp in Amsterdam timezone."""
