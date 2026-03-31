@@ -53,7 +53,17 @@ OUTPUT_DIRS = {
 }
 
 GENERATED_FILES_DIR = os.path.join(DATA_BASE_PATH, 'generated_mapping_files')
-LEARNING_DIR = os.path.join(DATA_BASE_PATH, 'learning_data')
+
+# Learning data: gebruik DATA_BASE_PATH als het schrijfbaar is, anders lokale fallback
+_learning_candidate = os.path.join(DATA_BASE_PATH, 'learning_data')
+try:
+    os.makedirs(_learning_candidate, exist_ok=True)
+    LEARNING_DIR = _learning_candidate
+except (PermissionError, OSError):
+    # Streamlit Cloud of andere read-only omgeving: gebruik lokale temp dir
+    import tempfile
+    LEARNING_DIR = os.path.join(tempfile.gettempdir(), 'mappingtool_learning')
+    os.makedirs(LEARNING_DIR, exist_ok=True)
 
 # =============================================================================
 # PAGE CONFIGURATION
