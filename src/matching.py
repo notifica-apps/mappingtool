@@ -419,6 +419,9 @@ class WVBalansMatcher:
 
     # WV-specifieke anchors — alleen actief als Niveau1/Niveau2 in de index zit
     WV_NIVEAU_ANCHORS = [
+        # --- Resultaat deelneming (EERST - voorkomt false match op prefab/holding anchors) ---
+        (r'\bresultaat\s+deelneming\b', ('Financiele Baten en Lasten', 'Resultaat Deelneming (financiele baten en lasten)')),
+
         # --- Personeelskosten ---
         (r'^pensioen', ('Personeelkosten', 'Pensioenlasten')),
         (r'^reiskosten|reiskosten\s+woon|woon\s*werk', ('Personeelkosten', 'Personeelskosten Overig')),
@@ -467,6 +470,39 @@ class WVBalansMatcher:
         (r'order.*administratie', ('Overige bedrijfskosten', 'Algemene kosten')),
         (r'werkzaamheden\s+via', ('Overige bedrijfskosten', 'Algemene kosten')),
 
+        # --- Directe kosten extra ---
+        (r'\baftimmering\b', ('Directe kosten', 'Materiaal')),
+        (r'\bproductiebedrijven\b', ('Directe kosten', 'Onderaanneming')),
+
+        # --- Personeelkosten extra ---
+        (r'\boverwerkuren\b', ('Personeelkosten', 'Personeelskosten Overig')),
+        (r'\bovernachtingsuren\b', ('Personeelkosten', 'Personeelskosten Overig')),
+        (r'\bstoringsdiensten\b', ('Personeelkosten', 'Personeelskosten Overig')),
+        (r'\bwasgeld\b', ('Personeelkosten', 'Personeelskosten Overig')),
+        (r'\bcommissarissenbeloning\b', ('Overige bedrijfskosten', 'Management Fee')),
+        (r'\brvu\s+fonds\b', ('Personeelkosten', 'Personeelskosten Overig')),
+        (r'\bvv\s+agv\s+bov\b', ('Personeelkosten', 'Sociale lasten')),
+        (r'\blkv\b', ('Personeelkosten', 'Sociale lasten')),
+        (r'\boctrooikosten\b', ('Overige bedrijfskosten', 'Algemene kosten')),
+        (r'\bkamer van koophandel\b', ('Overige bedrijfskosten', 'Algemene kosten')),
+        (r'\bparkbijdrage\b', ('Overige bedrijfskosten', 'Huisvestingkosten')),
+        (r'\bcalculatiebureau\b', ('Overige bedrijfskosten', 'Algemene kosten')),
+        (r'\buitleen\b.*\bic\b', ('Overige bedrijfskosten', 'Doorbelastingen')),
+        (r'\bwerkenresultaat\b', ('Omzet', 'Projectwaardering /-resultaat')),
+        (r'\bba\s+niet\s+projectgebonden\b', ('Omzet', 'Projectwaardering /-resultaat')),
+        (r'\bcorr\s+ba\b', ('Omzet', 'Projectwaardering /-resultaat')),
+        (r'\bartikelgroep\b', ('Directe kosten', 'Materiaal')),
+        (r'^montage\b', ('Directe kosten', 'Directe arbeidkosten')),
+        (r'^w\s+.*\bproj\b', ('Directe kosten', 'Directe arbeidkosten')),
+        (r'\bstoring\b', ('Directe kosten', 'Directe arbeidkosten')),
+        (r'\bregiewerk\b', ('Directe kosten', 'Directe arbeidkosten')),
+        (r'\bstekkerklaar\b', ('Directe kosten', 'Directe arbeidkosten')),
+        (r'\bgrootboekrekening\b', ('Overige bedrijfskosten', 'Algemene kosten')),
+        (r'\bprijsverschil\b', ('Directe kosten', 'Materiaal')),
+        (r'\bkoel\b.*\bvries\b', ('Directe kosten', 'Directe arbeidkosten')),
+        (r'\bkoudwater\b', ('Directe kosten', 'Directe arbeidkosten')),
+        (r'\bklimaat\b', ('Directe kosten', 'Directe arbeidkosten')),
+
         # --- Financieel ---
         (r'doorbelasting\s+ohw|\bohw\b|doorbelasting\s+onderhanden werk', ('Onderhanden werk', None)),
         (r'interest|rente', ('Financiele Baten en Lasten', None)),
@@ -478,7 +514,10 @@ class WVBalansMatcher:
     # Balans-specifieke anchors — alle Niveau-paren komen uit de brondata
     BALANS_NIVEAU_ANCHORS = [
         # --- Liquide middelen (bankrekeningen) ---
-        (r'\brabo\b|\babn\b|\bing\b|\byounique\b|\bknab\b|\btriodos\b',
+        (r'\brabo\b|\babn\b|\bing\b|\byounique\b|\bknab\b|\btriodos\b|\bgiro\b',
+         ('Vlottende Activa', 'Liquide Middelen')),
+        # IBAN-patroon (NL + 2 cijfers + bankcode)
+        (r'^nl\d{2}\s',
          ('Vlottende Activa', 'Liquide Middelen')),
 
         # --- Belastingen ---
@@ -486,7 +525,11 @@ class WVBalansMatcher:
         (r'betaling.*(belasting|loonheffing|lh\b)',
          ('Kortlopende schulden', 'Belastingen en premies sociale verzekering')),
 
+        # --- Deelnemingen ---
+        (r'^deelneming\b', ('Financiele Vaste Activa', 'Deelneming')),
+
         # --- Rekening courant (intercompany) ---
+        (r'\brekening courant\b', ('Kortlopende schulden', 'Schulden aan groepsmaatschappijen')),
         (r'\brc\b', ('Kortlopende schulden', 'Schulden aan groepsmaatschappijen')),
 
         # --- Betaling/schulden ---
@@ -494,6 +537,11 @@ class WVBalansMatcher:
         (r'^betaling\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
         (r'vooruitontvangen', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
         (r'abonnement.*omzet|gerealiseerde omzet', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'^te bet\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'^nog te bet\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'\binhouding\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'\btussenrek\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'\bkrediteuren\b', ('Kortlopende schulden', 'Crediteuren')),
 
         # --- Voorzieningen ---
         (r'garantievoorziening|garantievoorz', ('Voorzieningen', 'Overige voorzieningen')),
@@ -510,6 +558,53 @@ class WVBalansMatcher:
         # --- Vaste activa ---
         (r'aanschaf', ('Vaste Activa', 'Vaste Activa')),
         (r'\bpand\b|straat\b|weg\b|laan\b|plein\b', ('Vaste Activa', 'Vaste Activa')),
+        (r'\binventaris', ('Vaste Activa', 'Vaste Activa')),
+        (r'\bafschrijving\s+pand', ('Vaste Activa', 'Vaste Activa')),
+
+        # --- Immaterieel ---
+        (r'rechten.*intellectuele|intellectueel', ('Immateriele Vaste Activa', 'Goodwill')),
+
+        # --- Inkoopwaarde (onderhanden projecten) ---
+        (r'\binkoopwaarde\b', ('Vlottende Activa', 'Onderhanden projecten')),
+
+        # --- Pensioenvoorziening ---
+        (r'\bpensioenvoorziening\b', ('Voorzieningen', 'Overige voorzieningen')),
+
+        # --- Winst lopend jaar ---
+        (r'\bwinst\s+lopend\b', ('Eigen vermogen', 'Onverdeeld resultaat')),
+
+        # --- Aandeel derden ---
+        (r'\baandeel\s+derden\b', ('Eigen vermogen', 'Aandeel Derden')),
+
+        # --- Cumulatief aflossing (leaseauto's) ---
+        (r'\bcumulatief\s+aflossing\b', ('Vaste Activa', 'Vaste Activa')),
+
+        # --- Voorraad ---
+        (r'\bvoorraad', ('Vlottende Activa', 'Voorraden')),
+        (r'\bmagazijn', ('Vlottende Activa', 'Voorraden')),
+
+        # --- Vorderingen extra ---
+        (r'\bte ontvangen\b', ('Vlottende Activa', 'Overige Vorderingen')),
+        (r'\bvordering\b', ('Vlottende Activa', 'Overige Vorderingen')),
+        (r'\bverrekening\b', ('Vlottende Activa', 'Overige Vorderingen')),
+
+        # --- Schulden extra ---
+        (r'\bwga\b.*\baf te dragen\b', ('Kortlopende schulden', 'Belastingen en premies sociale verzekering')),
+        (r'\bwia\b.*\baf te dragen\b', ('Kortlopende schulden', 'Belastingen en premies sociale verzekering')),
+        (r'\baflopende verplichting\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'\binkoopfacturen\b', ('Kortlopende schulden', 'Crediteuren')),
+
+        # --- Eigen vermogen extra ---
+        (r'\begalisatie\s+reserve\b', ('Eigen vermogen', 'Overige reserves')),
+        (r'\bbalansopening\b', ('Eigen vermogen', 'Onverdeeld resultaat')),
+
+        # --- Overig ---
+        (r'\bgeactiveerde\b', ('Vaste Activa', 'Vaste Activa')),
+        (r'\bkantoorvoorraad\b', ('Vlottende Activa', 'Voorraden')),
+        (r'\bvaste\s+termijn\s+rekening\b', ('Vlottende Activa', 'Liquide Middelen')),
+        (r'\bconversie\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'\bcorrectie\s+wb\b|\bcorr\s+wb\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
+        (r'^toegevoegd\b', ('Kortlopende schulden', 'Overige schulden en overlopende passiva')),
 
         # --- Onderhanden projecten ---
         (r'^project\b', ('Vlottende Activa', 'Onderhanden projecten')),

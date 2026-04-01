@@ -139,6 +139,22 @@ WV_BALANS_PASS1 = [
     (r'\binkasso\b', 'incasso'),               # spelling variant
     (r'\bvoorz\b', 'voorziening'),             # Voorz. → voorziening
     (r'\bsvc\b', 'service'),                   # Svc → service
+    (r'\bdeeln\b', 'deelneming'),              # Deeln. → deelneming
+    (r'\brek\s+crt\b', 'rekening courant'),    # Rek. Crt. → rekening courant
+    (r'\bafschr\b', 'afschrijving'),           # Afschr. → afschrijving (zonder punt)
+    (r'\bpensioenvoorz\b', 'pensioenvoorziening'),  # Pensioenvoorz. → pensioenvoorziening
+    (r'\bbeheermij\b', 'beheermaatschappij'),  # Beheermij. → beheermaatschappij
+    (r'\bres\b', 'resultaat'),                 # Res. → resultaat
+    (r'\brek\s+courant\b', 'rekening courant'), # Rek.courant → rekening courant (variant zonder crt)
+    (r'\bcum\b', 'cumulatief'),                # Cum. → cumulatief
+    (r'\bgeaktiveerde\b', 'geactiveerde'),     # Spelling
+    (r'\bfinanc\b', 'financierings'),          # Financ. → financierings
+    (r'\bartgrp\b', 'artikelgroep'),           # Artgrp → artikelgroep
+
+    # === Bank-gerelateerde normalisatie ===
+    (r'\babna\b', 'abn'),                      # ABNA → ABN (voor anchor match)
+    (r'\bingb\b', 'ing'),                      # INGB → ING (voor anchor match)
+    (r'\bgill\b', 'giro'),                     # GILL → giro
 
     # === Compound word splitting (met boundary check) ===
     (r'\bvzk\b', ' verzekering'),              # vzk → verzekering (als los woord)
@@ -177,9 +193,10 @@ WV_BALANS_PASS1 = [
 # Pass 2: Generieke woordverwijdering
 # Wordt NA pass 1 uitgevoerd zodat samengestelde woorden al zijn omgezet
 WV_BALANS_PASS2 = [
-    (r'\bkosten\b', ''),    # remove (NA samengestelde woorden)
-    (r'\bkn\b', ''),        # remove (abbreviation for kosten) - NA pers kn/sal kn
-    (r'\bhardware\b', ''),  # remove
+    (r'\bkostprijs\b', ''),  # remove (NA samengestelde woorden)
+    (r'\bkosten\b', ''),     # remove (NA samengestelde woorden)
+    (r'\bkn\b', ''),         # remove (abbreviation for kosten) - NA pers kn/sal kn
+    (r'\bhardware\b', ''),   # remove
 ]
 
 
