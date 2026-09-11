@@ -412,6 +412,16 @@ class WVBalansMatcher:
     """
 
     # Fixed anchors with exact codes (alleen voor WV, niet voor Balans)
+    # Nederlands kenteken als rubrieknaam: na normalisatie zijn de streepjes spaties geworden,
+    # dus 'VD-210-K' wordt 'vd 210 k'. Twee of drie groepen van maximaal drie tekens, met
+    # minstens een lettergroep EN een cijfergroep - anders zou 'btw af' ook matchen.
+    # Bij 15 klanten staan 699 van deze rubrieken; 547 op Autokosten en 92 op Afschrijving
+    # (de 'Afschr. <kenteken>'-regels), vandaar deze twee patronen in deze volgorde.
+    KENTEKEN = (r'^(?=[a-z0-9 ]{5,14}$)(?=.*\d)(?=.*[a-z])'
+                r'(?:[a-z]{1,3}|\d{1,3})(?: (?:[a-z]{1,3}|\d{1,3})){1,2}$')
+    KENTEKEN_AFSCHR = (r'^afschr\w*\s+(?=[a-z0-9 ]{5,14}$)(?=.*\d)(?=.*[a-z])'
+                       r'(?:[a-z]{1,3}|\d{1,3})(?: (?:[a-z]{1,3}|\d{1,3})){1,2}$')
+
     FIXED_ANCHORS = [
         (r'^omzet$|^balie omzet$', ('101001', 'Omzet', 'Omzet')),
         (r'^afschrijving$|^afschr$', ('109001', 'Afschrijving', 'Afschrijving')),
@@ -419,6 +429,22 @@ class WVBalansMatcher:
 
     # WV-specifieke anchors — alleen actief als Niveau1/Niveau2 in de index zit
     WV_NIVEAU_ANCHORS = [
+        # --- Kentekens (EERST - een kenteken mag nooit fuzzy gematcht worden) ---
+        (KENTEKEN_AFSCHR, ('Afschrijving', 'Afschrijving')),
+        (KENTEKEN, ('Overige bedrijfskosten', 'Autokosten en overige Transportkosten')),
+
+        # --- Syntess OHW-doorbelasting (1284 Giesbers, 11-9-2026) ---
+        # 'Doorbelaste termijnen' / 'Doorbelast materiaal|tijd|overig' (DBLY/DBLM/DBLT/DBLO) zijn
+        # overboekingen van de W&V naar de balans (Toepassing "Doorbelasting OHW"), geen omzet en
+        # geen materiaal. Fuzzy zette DBLY op Omzet en DBLM op Materiaal; dan streept de
+        # doorbelasting de echte omzet weg en toont het rapport negatieve omzet. 'Projectresultaat'
+        # (RES*, Toepassing "Werkresultaat") is de vrijval bij het afsluiten van een project.
+        (r'^doorbelaste?\s+(termijnen|materiaal|materieel|tijd|overig|uren|kosten)',
+         ('Omzet', 'Projectmutaties')),
+        (r'^projectresultaat\b|^resultaat\s+projecten?\b', ('Omzet', 'Projectwaardering /-resultaat')),
+        (r'^mutatie\s+(opbrengst|bestede\s+kosten)', ('Omzet', 'Projectmutaties')),
+        (r'^mutatie\s+(ohw|onderhanden)', ('Omzet', 'Projectwaardering /-resultaat')),
+
         # --- Resultaat deelneming (EERST - voorkomt false match op prefab/holding anchors) ---
         (r'\bresultaat\s+deelneming\b', ('Financiele Baten en Lasten', 'Resultaat Deelneming (financiele baten en lasten)')),
 
@@ -513,6 +539,10 @@ class WVBalansMatcher:
 
     # Balans-specifieke anchors — alle Niveau-paren komen uit de brondata
     BALANS_NIVEAU_ANCHORS = [
+        # --- Kentekens: op de balans is een auto een bezitting ---
+        (KENTEKEN_AFSCHR, ('Vaste Activa', 'Vaste Activa')),
+        (KENTEKEN, ('Vaste Activa', 'Vaste Activa')),
+
         # --- Liquide middelen (bankrekeningen) ---
         (r'\brabo\b|\babn\b|\bing\b|\byounique\b|\bknab\b|\btriodos\b|\bgiro\b',
          ('Vlottende Activa', 'Liquide Middelen')),

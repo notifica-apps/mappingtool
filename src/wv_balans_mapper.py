@@ -38,6 +38,31 @@ class WVBalansMapper:
     REQUIRED_MAPPING_COLS = ['Rubriek', 'CoA_code', 'Niveau1', 'Niveau2']
     REQUIRED_TARGET_COLS = ['Rubriek']
 
+    # Laatste vangnet: klasse op basis van het eerste cijfer van het grootboeknummer.
+    # Deze tabel is gereconstrueerd uit learning_data/predictions.jsonl van 23-04-2026, omdat
+    # de code van die versie niet meer bestaat (staat niet in de repo en niet in de historie).
+    # Per cijfer is de klasse genomen die daar het vaakst werd toegekend; bij cijfer 4 hing dat
+    # af van personeel-achtige woorden, vandaar de aparte PERSONEEL-check.
+    # Dit is expliciet een gok, geen match - de methode heet daarom fallback_gb<cijfer>, zodat
+    # in de review zichtbaar blijft welke regels op naam zijn gematcht en welke op nummerreeks.
+    GB_FALLBACK_WV: Dict[str, Tuple[str, str]] = {
+        '0': ('Personeelkosten', 'Personeelskosten Overig'),
+        '4': ('Overige bedrijfskosten', 'Autokosten en overige Transportkosten'),
+        '5': ('Directe kosten', 'Materiaal'),
+        '6': ('Directe kosten', 'Materiaal'),
+        '7': ('Directe kosten', 'Materiaal'),
+        '8': ('Omzet', 'Omzet'),
+        '9': ('Financiele Baten en Lasten', 'Financiele Baten en Lasten'),
+    }
+    GB_FALLBACK_BALANS: Dict[str, Tuple[str, str]] = {
+        '0': ('Vaste Activa', 'Vaste Activa'),
+        '1': ('Vlottende Activa', 'Liquide Middelen'),
+        '2': ('Eigen vermogen', 'Algemene Reserve'),
+        '3': ('Vlottende Activa', 'Liquide Middelen'),
+        '6': ('Vlottende Activa', 'Liquide Middelen'),
+    }
+    GB_FALLBACK_PERSONEEL = r'loon|salaris|pensioen|personeel|sociale|vakantie|verzuim|ziekte|wga|whk'
+
     # Harde regels: eerste cijfer grootboeknummer -> toegestane Niveau1 waarden
     GB_RULES: Dict[str, List[str]] = {
         '8': ['Omzet'],
@@ -45,8 +70,14 @@ class WVBalansMapper:
         '4': ['Overige bedrijfskosten', 'Personeelkosten'],
     }
 
-    def __init__(self, min_fill_rate: float = 0.90):
+    def __init__(self, min_fill_rate: float = 0.90, use_gb_fallback: bool = False):
         self.min_fill_rate = min_fill_rate
+        # Laatste vangnet op nummerreeks, opt-in. Standaard UIT: het rekeningschema verschilt
+        # per klant. Bij Giesbers (1284) is de 8-reeks kostprijs ('Kostprijs inkoop KETELS') en
+        # zit de omzet in letterreeksen (ORP/ORW/ORG); '8 = omzet' afdwingen had de mapping daar
+        # gebroken. Zet use_gb_fallback=True alleen na een blik op de grootste rubrieken per reeks,
+        # en dan liever een gemarkeerde gok (methode fallback_gb<cijfer>) dan een leeg veld.
+        self.use_gb_fallback = use_gb_fallback
         self.index: Optional[MappingIndex] = None
         self.matcher: Optional[WVBalansMatcher] = None
         self.valid_combos: Set[Tuple[str, str, str]] = set()
@@ -358,6 +389,12 @@ class WVBalansMapper:
                     else:
                         validated = None
 
+            # Laatste vangnet op nummerreeks, alleen als er echt niets gematcht is.
+            if not validated and self.use_gb_fallback:
+                alt, alt_method = self._gb_fallback(row, rubriek)
+                if alt:
+                    validated, method = alt, alt_method
+
             if validated:
                 coa_codes.append(validated[0])
                 niveau1s.append(validated[1])
@@ -425,6 +462,41 @@ class WVBalansMapper:
         }
 
         return df, unmatched_df, self.run_stats
+
+    def _gb_fallback(self, row, rubriek: str):
+        """Klasse op nummerreeks als laatste redmiddel. Geeft (combo, methode) of (None, '')."""
+        import re as _re
+        cijfer = None
+        rubriek_key = None
+        if 'RubriekKey' in row.index and pd.notna(row.get('RubriekKey')):
+            rubriek_key = str(int(row['RubriekKey']))
+            cijfer = self._gb_lookup.get(rubriek_key)
+        if not cijfer:
+            for kolom in ('Rubriek Code', 'Rubriek code', 'RubriekCode'):
+                if kolom in row.index and pd.notna(row.get(kolom)):
+                    waarde = str(row[kolom]).strip()
+                    if waarde[:1].isdigit():
+                        cijfer = waarde[0]
+                    break
+        if not cijfer:
+            return None, ''
+
+        tabel = self.GB_FALLBACK_BALANS if self.matcher and self.matcher._is_balans             else self.GB_FALLBACK_WV
+        niveaus = tabel.get(cijfer)
+        if cijfer == '4' and not self.matcher._is_balans and                 _re.search(self.GB_FALLBACK_PERSONEEL, rubriek, _re.IGNORECASE):
+            niveaus = ('Personeelkosten', 'Personeelskosten Overig')
+        if not niveaus:
+            return None, ''
+        combo = self._find_by_niveau_via_matcher(*niveaus)
+        return (combo, f'fallback_gb{cijfer}') if combo else (None, '')
+
+    def _find_by_niveau_via_matcher(self, niveau1: str, niveau2: str):
+        """Een geldige combinatie uit het mappingbestand halen, zodat de uitkomst nooit
+        een verzonnen CoA-code is."""
+        if not self.matcher:
+            return None
+        combo = self.matcher._find_by_niveau(niveau1, niveau2)
+        return self._validate_combo(combo)
 
     def get_gb_exceptions(self, enriched_df: pd.DataFrame) -> List[Dict[str, str]]:
         """

@@ -73,7 +73,10 @@ def normalize_taken(taak: str, taak_type: Optional[str] = None) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
 
     # 6. Synonym clustering
-    is_direct = taak_type and taak_type.strip().lower() == 'direct'
+    # Klanten gebruiken naast Direct/Indirect ook 'Werk' voor productieve uren
+    # (klant 1284 heeft 151 taken op type Werk). Dat telt hier als Direct, anders
+    # valt zo'n taak buiten alle type-specifieke clustering.
+    is_direct = bool(taak_type) and taak_type.strip().lower() in ('direct', 'werk')
 
     # Check verzuim
     for kw in TAKEN_VERZUIM_KEYWORDS:
