@@ -223,7 +223,10 @@ def normalize_rubriek(rubriek: str) -> str:
     text = text.strip()
 
     # 3. Remove numeric prefix (1-5 digits with optional space or - after)
-    text = re.sub(r'^[\d]{1,5}[\s\-]?\s*', '', text)
+    # Rubriekcode-voorvoegsel weghalen ('4410 - Autokosten', '0210 Inventaris'). Alleen bij 3-5
+    # cijfers, of 1-2 cijfers gevolgd door een spatie: '74-JPG-8' en '8-KFS-42' zijn kentekens en
+    # zouden anders 'jpg 8' worden, waarna de kenteken-anchor ze niet meer herkent (1284, 11-9-2026).
+    text = re.sub(r'^\d{3,5}[\s\-]?\s*|^\d{1,2}\s+', '', text)
 
     # 4. Interpunction -> space
     text = re.sub(r'[^a-z0-9\s]', ' ', text)
