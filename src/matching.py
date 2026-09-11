@@ -413,14 +413,16 @@ class WVBalansMatcher:
 
     # Fixed anchors with exact codes (alleen voor WV, niet voor Balans)
     # Nederlands kenteken als rubrieknaam: na normalisatie zijn de streepjes spaties geworden,
-    # dus 'VD-210-K' wordt 'vd 210 k'. Twee of drie groepen van maximaal drie tekens, met
-    # minstens een lettergroep EN een cijfergroep - anders zou 'btw af' ook matchen.
+    # dus 'VD-210-K' wordt 'vd 210 k'. Drie groepen van maximaal drie tekens (een Nederlands
+    # kenteken heeft er altijd drie), plus een optionele vierde ('VD-210-K D'), met minstens een
+    # lettergroep EN een cijfergroep. Twee groepen toestaan zou 'kas 1' en 'ing 1' ook pakken,
+    # zonder de cijfer/letter-eis ook 'btw af' en 'lb pvv'.
     # Bij 15 klanten staan 699 van deze rubrieken; 547 op Autokosten en 92 op Afschrijving
     # (de 'Afschr. <kenteken>'-regels), vandaar deze twee patronen in deze volgorde.
-    KENTEKEN = (r'^(?=[a-z0-9 ]{5,14}$)(?=.*\d)(?=.*[a-z])'
-                r'(?:[a-z]{1,3}|\d{1,3})(?: (?:[a-z]{1,3}|\d{1,3})){1,2}$')
-    KENTEKEN_AFSCHR = (r'^afschr\w*\s+(?=[a-z0-9 ]{5,14}$)(?=.*\d)(?=.*[a-z])'
-                       r'(?:[a-z]{1,3}|\d{1,3})(?: (?:[a-z]{1,3}|\d{1,3})){1,2}$')
+    KENTEKEN = (r'^(?=[a-z0-9 ]{7,15}$)(?=.*\d)(?=.*[a-z])'
+                r'(?:[a-z]{1,3}|\d{1,3})(?: (?:[a-z]{1,3}|\d{1,3})){2,3}$')
+    KENTEKEN_AFSCHR = (r'^afschr\w*\s+(?=[a-z0-9 ]{7,15}$)(?=.*\d)(?=.*[a-z])'
+                       r'(?:[a-z]{1,3}|\d{1,3})(?: (?:[a-z]{1,3}|\d{1,3})){2,3}$')
 
     FIXED_ANCHORS = [
         (r'^omzet$|^balie omzet$', ('101001', 'Omzet', 'Omzet')),

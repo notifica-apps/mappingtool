@@ -348,6 +348,7 @@ class WVBalansMapper:
         niveau2s = []
 
         unmatched_rows = []
+        methodes = []
         match_methods = Counter()
         rejected_combos = Counter()
         total_rows = len(df)
@@ -361,6 +362,7 @@ class WVBalansMapper:
                 coa_codes.append("")
                 niveau1s.append("")
                 niveau2s.append("")
+                methodes.append("")
                 unmatched_rows.append({
                     'UniekeID': idx + 1,
                     'Rubriek': rubriek,
@@ -399,11 +401,13 @@ class WVBalansMapper:
                 coa_codes.append(validated[0])
                 niveau1s.append(validated[1])
                 niveau2s.append(validated[2])
+                methodes.append(method)
                 match_methods[method] += 1
             else:
                 coa_codes.append("")
                 niveau1s.append("")
                 niveau2s.append("")
+                methodes.append("")
                 if result:
                     rejected_combos[result] += 1
                 unmatched_rows.append({
@@ -416,6 +420,9 @@ class WVBalansMapper:
         df['CoA_code'] = coa_codes
         df['Niveau1'] = niveau1s
         df['Niveau2'] = niveau2s
+        # Per rij zichtbaar hoe de match tot stand kwam (exact, anchor, fuzzy, fallback_gb<n>),
+        # zodat een review kan onderscheiden wat op naam is gematcht en wat een gok was.
+        df['Matchmethode'] = methodes
 
         # POST-PROCESSING: Direct/Indirect consistentie
         # (Direct) varianten erven Niveau1+Niveau2 van hun (Indirect) tegenhanger
